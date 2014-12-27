@@ -1,6 +1,6 @@
 package Crypt::Hill;
 
-$Crypt::Hill::VERSION = '0.01';
+$Crypt::Hill::VERSION = '0.02';
 
 =head1 NAME
 
@@ -8,13 +8,12 @@ Crypt::Hill - Interface to the Hill cipher (2x2).
 
 =head1 VERSION
 
-Version 0.01
+Version 0.02
 
 =cut
 
 use 5.006;
 use Data::Dumper;
-use Math::Matrix;
 
 use Moo;
 use namespace::clean;
@@ -111,7 +110,7 @@ sub _process {
     my $_message = $self->_to_matrix($message);
     my $result   = '';
     foreach (@$_message) {
-        my $_matrix = $key->multiply($_);
+        my $_matrix = _multiply($key, $_);
         $_matrix->[0]->[0] %= $modulos;
         $_matrix->[1]->[0] %= $modulos;
         $result .= sprintf("%s%s", $chars[$_matrix->[0]->[0]], $chars[$_matrix->[1]->[0]]);
@@ -138,8 +137,8 @@ sub _encrypt_key {
         $index += $size;
     }
 
-    my $enc_key = Math::Matrix->new(@params);
-    die "ERROR: Invalid key [$key] supplied." if ($enc_key->determinant == 0);
+    my $enc_key = \@params;
+    die "ERROR: Invalid key [$key] supplied." if (_determinant($enc_key) == 0);
     return $enc_key;
 }
 
@@ -148,7 +147,7 @@ sub _decrypt_key {
     my ($self) = @_;
 
     my $key         = $self->encrypt_key;
-    my $determinant = $key->determinant;
+    my $determinant = _determinant($key);
     my $first       = $key->[0][0];
     my $last        = $key->[1][1];
     $key->[0][0]    = $last;
@@ -167,7 +166,7 @@ sub _decrypt_key {
         }
     }
 
-    return Math::Matrix->new(@$new_key);
+    $new_key;
 }
 
 # convert message to list of matrix (2x1)
@@ -181,7 +180,10 @@ sub _to_matrix {
     my $matrix = [];
 
     while ($index < scalar(@keys)) {
-        push @$matrix, Math::Matrix->new([ $table->{$keys[$index]} ], [ $table->{$keys[$index+1]} ]);
+        my $_matrix = [];
+        $_matrix->[0][0] = $table->{$keys[$index]};
+        $_matrix->[1][0] = $table->{$keys[$index+1]};
+        push @$matrix, $_matrix;
         $index += $size;
     }
 
@@ -233,6 +235,22 @@ sub _get_mod_inverse {
     for my $i (1..($mod-1)) {
         return $i if (($determinant * $i) % $mod == 1);
     }
+}
+
+sub _determinant {
+    my ($matrix) = @_;
+
+    return ($matrix->[0][0]*$matrix->[1][1] - $matrix->[0][1]*$matrix->[1][0]);
+}
+
+sub _multiply {
+    my ($matrix, $by) = @_;
+
+    my $_matrix = [];
+    $_matrix->[0][0] = ($matrix->[0][0] * $by->[0][0] + $matrix->[0][1] * $by->[1][0]);
+    $_matrix->[1][0] = ($matrix->[1][0] * $by->[0][0] + $matrix->[1][1] * $by->[1][0]);
+
+    return $_matrix;
 }
 
 =head1 AUTHOR

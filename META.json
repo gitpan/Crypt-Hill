@@ -32,7 +32,6 @@
       },
       "runtime" : {
          "requires" : {
-            "Math::Matrix" : "0",
             "Moo" : "0",
             "namespace::clean" : "0",
             "perl" : "5.006"
@@ -47,5 +46,5 @@
          "web" : "https://github.com/Manwar/Crypt-Hill"
       }
    },
-   "version" : "0.01"
+   "version" : "0.02"
 }

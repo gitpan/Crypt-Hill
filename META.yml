@@ -18,10 +18,9 @@ no_index:
     - t
     - inc
 requires:
-  Math::Matrix: '0'
   Moo: '0'
   namespace::clean: '0'
   perl: '5.006'
 resources:
   repository: https://github.com/Manwar/Crypt-Hill.git
-version: '0.01'
+version: '0.02'

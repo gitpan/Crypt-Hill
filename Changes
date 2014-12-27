@@ -1,4 +1,7 @@
 Revision history for Crypt-Hill
 
+0.02  Sat Dec 27 23:28:00 2014
+      - Removed the dependency on Math::Matrix package.
+
 0.01  Thu Dec 25 08:55:00 2014
       - First version, released.

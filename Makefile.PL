@@ -18,7 +18,6 @@ WriteMakefile(
         'Test::More' => 0,
     },
     PREREQ_PM => {
-        'Math::Matrix'     => 0,
         'Moo'              => 0,
         'namespace::clean' => 0,
     },
