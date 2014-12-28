@@ -1,5 +1,9 @@
 Revision history for Crypt-Hill
 
+0.03  Sun Dec 28 12:26:00 2014
+      - Refactored package Crypt::Hill and created new package Crypt::Hill::Utils.
+      - Updated unit test t/00-load.t
+
 0.02  Sat Dec 27 23:28:00 2014
       - Removed the dependency on Math::Matrix package.
 

@@ -1,6 +1,6 @@
 package Crypt::Hill;
 
-$Crypt::Hill::VERSION = '0.02';
+$Crypt::Hill::VERSION = '0.03';
 
 =head1 NAME
 
@@ -8,12 +8,19 @@ Crypt::Hill - Interface to the Hill cipher (2x2).
 
 =head1 VERSION
 
-Version 0.02
+Version 0.03
 
 =cut
 
 use 5.006;
 use Data::Dumper;
+use Crypt::Hill::Utils qw(
+    generate_keys
+    generate_table
+    get_mod_inverse
+    get_determinant
+    multiply_mod
+);
 
 use Moo;
 use namespace::clean;
@@ -22,8 +29,8 @@ my $CHARSETS   = ['A'..'Z'];
 my $KEY_LENGTH = 4;
 my $BLOCK_SIZE = 2;
 
-has 'table'       => (is => 'ro', default  => sub { _generate_table(); });
-has 'block_size'  => (is => 'ro', default  => sub { $BLOCK_SIZE        });
+has 'table'       => (is => 'ro', default  => sub { generate_table($CHARSETS); });
+has 'block_size'  => (is => 'ro', default  => sub { $BLOCK_SIZE                });
 has 'key'         => (is => 'ro', required => 1);
 has 'encrypt_key' => (is => 'rw');
 
@@ -110,10 +117,8 @@ sub _process {
     my $_message = $self->_to_matrix($message);
     my $result   = '';
     foreach (@$_message) {
-        my $_matrix = _multiply($key, $_);
-        $_matrix->[0]->[0] %= $modulos;
-        $_matrix->[1]->[0] %= $modulos;
-        $result .= sprintf("%s%s", $chars[$_matrix->[0]->[0]], $chars[$_matrix->[1]->[0]]);
+        my $_matrix = multiply_mod($key, $_, $modulos);
+        $result .= sprintf("%s%s", $chars[$_matrix->[0][0]], $chars[$_matrix->[1][0]]);
     }
 
     return $result;
@@ -128,7 +133,7 @@ sub _encrypt_key {
     die "ERROR: Key should be of length $KEY_LENGTH." unless (length($key) == $KEY_LENGTH);
 
     my $size   = $self->block_size;
-    my @keys   = _generate_keys($key, $size);
+    my @keys   = generate_keys($CHARSETS, $key, $size);
     my @params = ();
     my $index  = 0;
 
@@ -138,7 +143,7 @@ sub _encrypt_key {
     }
 
     my $enc_key = \@params;
-    die "ERROR: Invalid key [$key] supplied." if (_determinant($enc_key) == 0);
+    die "ERROR: Invalid key [$key] supplied." if (get_determinant($enc_key) == 0);
     return $enc_key;
 }
 
@@ -147,7 +152,7 @@ sub _decrypt_key {
     my ($self) = @_;
 
     my $key         = $self->encrypt_key;
-    my $determinant = _determinant($key);
+    my $determinant = get_determinant($key);
     my $first       = $key->[0][0];
     my $last        = $key->[1][1];
     $key->[0][0]    = $last;
@@ -157,7 +162,7 @@ sub _decrypt_key {
 
     my $new_key = [];
     my $modulos = scalar(@$CHARSETS);
-    my $mod_inv = _get_mod_inverse($determinant, $modulos);
+    my $mod_inv = get_mod_inverse($determinant, $modulos);
 
     foreach my $row (0..1) {
         foreach my $col (0..1) {
@@ -175,7 +180,7 @@ sub _to_matrix {
 
     my $size   = $self->block_size;
     my $table  = $self->table;
-    my @keys   = _generate_keys($message, $size);
+    my @keys   = generate_keys($CHARSETS, $message, $size);
     my $index  = 0;
     my $matrix = [];
 
@@ -188,69 +193,6 @@ sub _to_matrix {
     }
 
     return $matrix;
-}
-
-sub _generate_table {
-
-    my @chars = @$CHARSETS;
-    my $table = {};
-    my $index = 0;
-    foreach (@chars) {
-        $table->{$_} = $index++;
-    }
-
-    return $table;
-}
-
-sub _generate_keys  {
-    my ($key, $size) = @_;
-
-    my @keys = split //, $key;
-    my $mod  = scalar(@keys) % $size;
-    push @keys, _generate_random_characters($mod) if ($mod > 0);
-
-    return @keys;
-}
-
-sub _generate_random_number {
-    my ($min, $max) = @_;
-
-    return int($min + rand($max - $min));
-}
-
-sub _generate_random_characters {
-    my ($count) = @_;
-
-    my @chars = @$CHARSETS;
-    my $min   = 1;
-    my $max   = scalar(@chars);
-
-    return @chars[ map { _generate_random_number($min, $max) } (1..$count) ];
-}
-
-sub _get_mod_inverse {
-    my ($determinant, $mod) = @_;
-
-    $determinant %= $mod;
-    for my $i (1..($mod-1)) {
-        return $i if (($determinant * $i) % $mod == 1);
-    }
-}
-
-sub _determinant {
-    my ($matrix) = @_;
-
-    return ($matrix->[0][0]*$matrix->[1][1] - $matrix->[0][1]*$matrix->[1][0]);
-}
-
-sub _multiply {
-    my ($matrix, $by) = @_;
-
-    my $_matrix = [];
-    $_matrix->[0][0] = ($matrix->[0][0] * $by->[0][0] + $matrix->[0][1] * $by->[1][0]);
-    $_matrix->[1][0] = ($matrix->[1][0] * $by->[0][0] + $matrix->[1][1] * $by->[1][0]);
-
-    return $_matrix;
 }
 
 =head1 AUTHOR
