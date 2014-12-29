@@ -1,6 +1,6 @@
 package Crypt::Hill::Utils;
 
-$Crypt::Hill::Utils::VERSION = '0.03';
+$Crypt::Hill::Utils::VERSION = '0.04';
 
 =head1 NAME
 
@@ -8,7 +8,7 @@ Crypt::Hill::Utils - Utils package for Crypt::Hill.
 
 =head1 VERSION
 
-Version 0.03
+Version 0.04
 
 =cut
 
@@ -20,9 +20,10 @@ use vars qw(@ISA @EXPORT @EXPORT_OK);
 
 require Exporter;
 @ISA       = qw(Exporter);
-@EXPORT_OK = qw(generate_keys
+@EXPORT_OK = qw(to_matrix_2_x_1
+                to_matrix_1_x_2
+                inverse_matrix
                 generate_table
-                get_mod_inverse
                 get_determinant
                 multiply_mod);
 
@@ -32,25 +33,74 @@ B<FOR INTERNAL USE ONLY>
 
 =cut
 
+sub to_matrix_2_x_1 {
+    my ($message, $chars, $table, $size) = @_;
+
+    my @keys   = _generate_keys($chars, $message, $size);
+    my $index  = 0;
+    my $matrix = [];
+
+    while ($index < scalar(@keys)) {
+        my $_matrix = [];
+        $_matrix->[0][0] = $table->{$keys[$index]};
+        $_matrix->[1][0] = $table->{$keys[$index+1]};
+        push @$matrix, $_matrix;
+        $index += $size;
+    }
+
+    return $matrix;
+}
+
+sub to_matrix_1_x_2 {
+    my ($message, $chars, $table, $size) = @_;
+
+    my @keys   = _generate_keys($chars, $message, $size);
+    my $index  = 0;
+    my @matrix = ();
+
+    while ($index < scalar(@keys)) {
+        my $_matrix = [];
+        $_matrix->[0] = $table->{$keys[$index]};
+        $_matrix->[1] = $table->{$keys[$index+1]};
+        push @matrix, $_matrix;
+        $index += $size;
+    }
+
+    return \@matrix;
+}
+
+sub inverse_matrix {
+    my ($matrix, $modulus) = @_;
+
+    my $determinant  = get_determinant($matrix);
+    my $mod_inv      = _get_mod_inverse($determinant, $modulus);
+    my $first        = $matrix->[0][0];
+    my $last         = $matrix->[1][1];
+    $matrix->[0][0]  = $last;
+    $matrix->[1][1]  = $first;
+    $matrix->[0][1] *= -1;
+    $matrix->[1][0] *= -1;
+
+    my $inv_matrix = [];
+    foreach my $row (0..1) {
+        foreach my $col (0..1) {
+            $inv_matrix->[$row][$col] = ($matrix->[$row][$col] * $mod_inv) % $modulus;
+        }
+    }
+
+    return $inv_matrix;
+}
+
 sub generate_table {
     my ($chars) = @_;
+
     my $table   = {};
     my $index   = 0;
-
     foreach (@$chars) {
         $table->{$_} = $index++;
     }
 
     return $table;
-}
-
-sub get_mod_inverse {
-    my ($determinant, $mod) = @_;
-
-    $determinant %= $mod;
-    for my $i (1..($mod-1)) {
-        return $i if (($determinant * $i) % $mod == 1);
-    }
 }
 
 sub get_determinant {
@@ -69,16 +119,6 @@ sub multiply_mod {
     $_matrix->[1][0] %= $mod;
 
     return $_matrix;
-}
-
-sub generate_keys  {
-    my ($charsets, $key, $size) = @_;
-
-    my @keys = split //, $key;
-    my $mod  = scalar(@keys) % $size;
-    push @keys, _generate_random_characters($charsets, $mod) if ($mod > 0);
-
-    return @keys;
 }
 
 #
@@ -101,6 +141,25 @@ sub _generate_random_characters {
     return @chars[ map { _generate_random_number($min, $max) } (1..$count) ];
 }
 
+sub _get_mod_inverse {
+    my ($determinant, $mod) = @_;
+
+    $determinant %= $mod;
+    for my $i (1..($mod-1)) {
+        return $i if (($determinant * $i) % $mod == 1);
+    }
+}
+
+sub _generate_keys  {
+    my ($charsets, $key, $size) = @_;
+
+    my @keys = split //, $key;
+    my $mod  = scalar(@keys) % $size;
+    push @keys, _generate_random_characters($charsets, $mod) if ($mod > 0);
+
+    return @keys;
+}
+
 =head1 AUTHOR
 
 Mohammad S Anwar, C<< <mohammad.anwar at yahoo.com> >>
@@ -120,7 +179,7 @@ as I make changes.
 
 You can find documentation for this module with the perldoc command.
 
-    perldoc Crypt::Hill
+    perldoc Crypt::Hill::Utils
 
 You can also look for information at:
 
@@ -184,4 +243,4 @@ OF THE PACKAGE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =cut
 
-1; # End of Crypt::Hill
+1; # End of Crypt::Hill::Utils

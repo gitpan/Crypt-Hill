@@ -1,6 +1,6 @@
 package Crypt::Hill;
 
-$Crypt::Hill::VERSION = '0.03';
+$Crypt::Hill::VERSION = '0.04';
 
 =head1 NAME
 
@@ -8,16 +8,17 @@ Crypt::Hill - Interface to the Hill cipher (2x2).
 
 =head1 VERSION
 
-Version 0.03
+Version 0.04
 
 =cut
 
 use 5.006;
 use Data::Dumper;
 use Crypt::Hill::Utils qw(
-    generate_keys
+    to_matrix_1_x_2
+    to_matrix_2_x_1
+    inverse_matrix
     generate_table
-    get_mod_inverse
     get_determinant
     multiply_mod
 );
@@ -114,7 +115,9 @@ sub _process {
 
     my @chars    = @$CHARSETS;
     my $modulos  = scalar(@chars);
-    my $_message = $self->_to_matrix($message);
+    my $size     = $self->block_size;
+    my $table    = $self->table;
+    my $_message = to_matrix_2_x_1($message, $CHARSETS, $table, $size);
     my $result   = '';
     foreach (@$_message) {
         my $_matrix = multiply_mod($key, $_, $modulos);
@@ -124,75 +127,29 @@ sub _process {
     return $result;
 }
 
-# convert key to matrix (2x2)
+# convert key to matrix (1x2)
 sub _encrypt_key {
-    my ($self) = @_;
+    my ($self)  = @_;
 
-    my $table  = $self->table;
-    my $key    = $self->key;
+    my $table   = $self->table;
+    my $key     = $self->key;
     die "ERROR: Key should be of length $KEY_LENGTH." unless (length($key) == $KEY_LENGTH);
 
-    my $size   = $self->block_size;
-    my @keys   = generate_keys($CHARSETS, $key, $size);
-    my @params = ();
-    my $index  = 0;
-
-    while ($index < scalar(@keys)) {
-        push @params, [ $table->{$keys[$index]}, $table->{$keys[$index+1]} ];
-        $index += $size;
-    }
-
-    my $enc_key = \@params;
+    my $size    = $self->block_size;
+    my $enc_key = to_matrix_1_x_2($key, $CHARSETS, $table, $size);
     die "ERROR: Invalid key [$key] supplied." if (get_determinant($enc_key) == 0);
+
     return $enc_key;
 }
 
 # descrypt key to matrix (2x2)
 sub _decrypt_key {
-    my ($self) = @_;
+    my ($self)  = @_;
 
-    my $key         = $self->encrypt_key;
-    my $determinant = get_determinant($key);
-    my $first       = $key->[0][0];
-    my $last        = $key->[1][1];
-    $key->[0][0]    = $last;
-    $key->[1][1]    = $first;
-    $key->[0][1]   *= -1;
-    $key->[1][0]   *= -1;
+    my $key     = $self->encrypt_key;
+    my $modulus = scalar(@$CHARSETS);
 
-    my $new_key = [];
-    my $modulos = scalar(@$CHARSETS);
-    my $mod_inv = get_mod_inverse($determinant, $modulos);
-
-    foreach my $row (0..1) {
-        foreach my $col (0..1) {
-            my $t = $key->[$row][$col] * $mod_inv;
-            $new_key->[$row][$col] = $t % $modulos;
-        }
-    }
-
-    $new_key;
-}
-
-# convert message to list of matrix (2x1)
-sub _to_matrix {
-    my ($self, $message) = @_;
-
-    my $size   = $self->block_size;
-    my $table  = $self->table;
-    my @keys   = generate_keys($CHARSETS, $message, $size);
-    my $index  = 0;
-    my $matrix = [];
-
-    while ($index < scalar(@keys)) {
-        my $_matrix = [];
-        $_matrix->[0][0] = $table->{$keys[$index]};
-        $_matrix->[1][0] = $table->{$keys[$index+1]};
-        push @$matrix, $_matrix;
-        $index += $size;
-    }
-
-    return $matrix;
+    return inverse_matrix($key, $modulus);
 }
 
 =head1 AUTHOR

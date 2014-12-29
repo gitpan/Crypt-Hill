@@ -1,5 +1,9 @@
 Revision history for Crypt-Hill
 
+0.04  Mon Dec 29 13:14:15 2014
+      - Further more refactoring done.
+      - Fixed couple of typos in the pod document of Crypt::Hill::Utils.
+
 0.03  Sun Dec 28 12:26:00 2014
       - Refactored package Crypt::Hill and created new package Crypt::Hill::Utils.
       - Updated unit test t/00-load.t
